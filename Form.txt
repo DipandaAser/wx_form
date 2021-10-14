@@ -1,0 +1,157 @@
+Form est une Classe
+PRIVATE
+	FormID	est une chaîne
+	Fields	est un tableau associatif de tableaux de chaînes
+	Files	est un tableau associatif de tableaux de STFile
+FIN
+
+STFile est une Structure
+	Path est une chaîne
+	Name est une chaîne
+FIN
+
+//==================================================================================================
+
+
+PROCÉDURE Constructeur()
+FormID = DonneGUID(guidBrut)
+//==================================================================================================
+
+
+PROCÉDURE Destructeur()
+//==================================================================================================
+
+
+// Résumé : Return the contentType with the ID of the form you should use this on the content type of a restrequest
+PROCÉDURE GetContentType()
+RENVOYER "multipart/form-data; boundary="+FormID
+//==================================================================================================
+
+
+// Résumé : <Add a form field with is value if the value doesn't exist the field will not be add>
+PROCÉDURE AddField(form_field_name est une chaîne, field_value est une chaîne)
+SI SansEspace(form_field_name) = "" ALORS
+	RETOUR
+FIN
+
+SI SansEspace(field_value) = "" ALORS
+	RETOUR
+FIN
+
+SI This.Fields[form_field_name]..Vide ALORS
+	SetField(form_field_name, field_value)
+	RETOUR
+FIN
+
+values est un tableau de chaînes = This.Fields[form_field_name]
+values.Ajoute(field_value)
+This.Fields[form_field_name] = values
+//==================================================================================================
+
+
+// Résumé : <Override a form field with is value if the value doesn't exist the field will not be add>
+PROCÉDURE SetField(form_field_name est une chaîne, field_value est une chaîne)
+SI SansEspace(form_field_name) = "" ALORS
+	RETOUR
+FIN
+
+SI SansEspace(field_value) = "" ALORS
+	RETOUR
+FIN
+
+This.Fields[form_field_name] = [field_value]
+//==================================================================================================
+
+
+PROCÉDURE DeleteField(form_field_name est une chaîne)
+Supprime(This.Fields, form_field_name)
+//==================================================================================================
+
+
+PROCÉDURE AddFile(form_field_name est une chaîne, path est une chaîne, name est une chaîne = "")
+
+SI SansEspace(form_field_name) = "" ALORS
+	RETOUR
+FIN
+
+SI SansEspace(path) = "" ALORS
+	RETOUR
+FIN
+
+SI This.Files[form_field_name]..Vide ALORS
+	SetFile(form_field_name, path, name)
+	RETOUR
+FIN
+
+values est un tableau de STFile = This.Files[form_field_name]
+STFile est un STFile
+SI SansEspace(name) = "" ALORS
+	STFile.Name = fExtraitChemin(path, fFichier + fExtension)
+SINON
+	STFile.Name	= name
+FIN
+STFile.Path = path
+values.Ajoute(STFile)
+This.Files[form_field_name] = values
+//==================================================================================================
+
+
+PROCÉDURE SetFile(form_field_name est une chaîne, path est une chaîne, name est une chaîne = "")
+
+SI SansEspace(form_field_name) = "" ALORS
+	RETOUR
+FIN
+
+SI SansEspace(path) = "" ALORS
+	RETOUR
+FIN
+
+
+STFile est un STFile
+SI SansEspace(name) = "" ALORS
+	STFile.Name = fExtraitChemin(path, fFichier + fExtension)
+SINON
+	STFile.Name	= name
+FIN
+STFile.Path	= path
+
+This.Files[form_field_name] = [STFile]
+//==================================================================================================
+
+
+PROCÉDURE DeleteFile(form_field_name est une chaîne)
+Supprime(This.Fields, form_field_name)
+//==================================================================================================
+
+
+PROCÉDURE Build():chaîne
+form_Data est une chaîne
+
+// process normal fields
+POUR TOUT tabValues, form_field_name de This.Fields
+	POUR TOUT form_field_value DE tabValues
+		form_Data += AjouteForm(form_field_name, form_field_value)
+	FIN
+FIN
+
+// process file
+POUR TOUT tabFiles, form_field_name de This.Files
+	POUR TOUT file DE tabFiles
+		form_Data += AjouteFichier(form_field_name, file)
+	FIN
+FIN
+	
+
+
+// We close the form
+form_Data+=[RC]+"--[%FormID%]--"
+
+RENVOYER form_Data
+
+	PROCÉDURE INTERNE AjouteForm(form_field_name est une chaîne, form_field_value est une chaîne)
+		RENVOYER "--[%FormID%]"+RC+"Content-Disposition: form-data; name=""[%form_field_name%]"""+RC+RC+"[%form_field_value%]"+RC
+	FIN
+
+	PROCÉDURE INTERNE AjouteFichier(form_field_name chaîne, file est un STFile)
+		RENVOYER "--[%FormID%]"+RC+"Content-Disposition: form-data; name=""[%form_field_name%]""; filename=""[%file.Name%]""" +RC+RC+"[%fChargeBuffer(file.Path)%]"+RC
+	FIN
